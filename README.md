@@ -65,8 +65,24 @@ anything.
 ## Notifications
 
 - **Desktop Mode:** KDE notification plus a sound.
-- **Game Mode:** sound only, because Steam's UI doesn't show desktop notifications. The
-  notification is queued and shown the next time Desktop Mode is up.
+- **Game Mode:** a Steam toast via the included Decky plugin, plus a sound. Without the
+  plugin it's sound only.
+- **Neither available** (e.g. at boot before Steam has loaded): the alert is queued and
+  shown as soon as Desktop Mode or the Decky plugin is up.
+
+### Decky plugin (`decky-plugin/`)
+
+When Desktop Mode isn't running, the guards write each alert as a JSON file to
+`~/.local/state/legion-go-guards/toasts/`. The plugin's frontend polls the backend every
+3 s and shows new files as Steam toasts. Each poll also refreshes `decky-alive`, which is
+how the guards know toasts will be seen. The plugin runs as the normal user.
+
+Its Quick Access panel shows the service status and recent events, and has a **Send test
+alerts** button that runs the full path (guard → spool → toast).
+
+`./install.sh` builds and installs the plugin when Decky Loader is present. It needs
+Node.js ≥ 20, found on `PATH` or in `~/.local/opt/node/bin`. To install only the plugin,
+run `decky-plugin/install.sh`.
 - Only important events alert you: thermal warnings, abnormal shutdowns, panics,
   lockups, MCE, GPU hangs, OOM kills and severe dumps. Everything else is only logged.
 

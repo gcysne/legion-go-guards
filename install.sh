@@ -46,6 +46,11 @@ if [[ -n "$LOG_DIR" ]]; then
     echo "Log dir set to $LOG_DIR"
 fi
 
+if [[ -d "$HOME/homebrew/plugins" ]]; then
+    echo "Decky Loader found: installing the Game Mode toast plugin..."
+    "$SRC/decky-plugin/install.sh" || echo "warning: Decky plugin not installed (alerts in Game Mode will be sound only)" >&2
+fi
+
 systemctl --user daemon-reload
 if [[ $START -eq 1 ]]; then
     systemctl --user enable thermal-guard.service reboot-reason-guard.service

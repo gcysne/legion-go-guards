@@ -21,7 +21,8 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "leg
 DEFAULTS = {
     "log_dir": str(STATE_DIR / "logs"),
     "notify": {
-        "desktop": True,          # KDE notification (Desktop Mode)
+        "desktop": True,          # KDE notification (Desktop Mode) / alerts at all
+        "decky": True,            # Steam toast via the Decky plugin (Game Mode)
         "sound": True,            # alert sound (works in Game Mode too)
         "sound_warning": "/usr/share/sounds/freedesktop/stereo/dialog-warning.oga",
         "sound_critical": "/usr/share/sounds/oxygen/stereo/Oxygen-Sys-App-Error-Critical.ogg",
@@ -110,9 +111,23 @@ def desktop_mode_active():
                           capture_output=True).returncode == 0
 
 
+TOAST_DIR = STATE_DIR / "toasts"
+DECKY_ALIVE = STATE_DIR / "decky-alive"
+DECKY_ALIVE_SECONDS = 20
+
+
+def decky_alive():
+    """True while the Decky plugin frontend is polling (Game Mode toasts work)."""
+    try:
+        return time.time() - DECKY_ALIVE.stat().st_mtime < DECKY_ALIVE_SECONDS
+    except OSError:
+        return False
+
+
 class Notifier:
-    """Plays a sound right away; shows a KDE notification if Desktop Mode is
-    up, otherwise queues it and shows it the next time Desktop Mode is up."""
+    """Plays a sound right away, then shows the alert where it can be seen:
+    a KDE notification in Desktop Mode, a Steam toast (via the Decky plugin)
+    in Game Mode, otherwise queues it until one of those is available."""
 
     def __init__(self, cfg, app_name):
         self.cfg = cfg["notify"]
@@ -125,7 +140,7 @@ class Notifier:
             self._sound(critical)
         if not self.cfg.get("desktop"):
             return
-        if desktop_mode_active() and self._popup(title, body, critical):
+        if self._show(title, body, critical):
             return
         q = self._load_queue()
         q.append({"time": time.strftime("%Y-%m-%d %H:%M"), "title": title,
@@ -134,17 +149,35 @@ class Notifier:
 
     def flush(self):
         q = self._load_queue()
-        if not q or not desktop_mode_active():
+        if not q:
             return
         if len(q) == 1:
             e = q[0]
-            ok = self._popup(f"{e['title']} (at {e['time']})", e["body"], e["critical"])
+            ok = self._show(f"{e['title']} (at {e['time']})", e["body"], e["critical"])
         else:
             body = "\n".join(f"{e['time']}  {e['title']}" for e in q[-10:])
-            ok = self._popup(f"{len(q)} events while in Game Mode", body,
-                             any(e["critical"] for e in q))
+            ok = self._show(f"{len(q)} guard alerts while you were away", body,
+                            any(e["critical"] for e in q))
         if ok:
             self.queue_file.unlink(missing_ok=True)
+
+    def _show(self, title, body, critical):
+        if desktop_mode_active() and self._popup(title, body, critical):
+            return True
+        if self.cfg.get("decky", True) and decky_alive():
+            return self._toast(title, body, critical)
+        return False
+
+    def _toast(self, title, body, critical):
+        try:
+            TOAST_DIR.mkdir(parents=True, exist_ok=True)
+            path = TOAST_DIR / f"{time.time_ns()}-{os.getpid()}.json"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"title": title, "body": body, "critical": critical}))
+            tmp.replace(path)  # atomic: the plugin only reads *.json
+            return True
+        except OSError:
+            return False
 
     def _load_queue(self):
         try:

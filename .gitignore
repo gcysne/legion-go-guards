@@ -8,3 +8,5 @@ heartbeat-*.json
 config.toml
 __pycache__/
 *.pyc
+node_modules/
+decky-plugin/dist/

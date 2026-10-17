@@ -3,6 +3,7 @@
 import os
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -124,6 +125,58 @@ class ThermalMonitorTests(unittest.TestCase):
         self.run_temps([98, 98])
         self.assertIn("hot_critical", self.kinds())
         self.assertTrue(self.notify.send.call_args.kwargs["critical"])
+
+
+class NotifierRoutingTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        state = g.Path(self.tmp.name)
+        for name, val in (("STATE_DIR", state), ("TOAST_DIR", state / "toasts"),
+                          ("DECKY_ALIVE", state / "decky-alive")):
+            mock.patch.object(g, name, val).start()
+        self.addCleanup(mock.patch.stopall)
+        self.addCleanup(self.tmp.cleanup)
+        cfg = g._merge(g.DEFAULTS, {"notify": {"sound": False}})
+        self.n = g.Notifier(cfg, "test")
+        self.popup = mock.patch.object(self.n, "_popup", return_value=True).start()
+
+    def toasts(self):
+        return sorted(g.TOAST_DIR.glob("*.json")) if g.TOAST_DIR.exists() else []
+
+    def test_desktop_mode_uses_kde(self):
+        with mock.patch.object(g, "desktop_mode_active", return_value=True):
+            self.n.send("t", "b")
+        self.popup.assert_called_once()
+        self.assertEqual(self.toasts(), [])
+
+    def test_game_mode_with_decky_uses_toast(self):
+        g.DECKY_ALIVE.parent.mkdir(parents=True, exist_ok=True)
+        g.DECKY_ALIVE.touch()
+        with mock.patch.object(g, "desktop_mode_active", return_value=False):
+            self.n.send("hot", "body", critical=True)
+        self.popup.assert_not_called()
+        [f] = self.toasts()
+        self.assertEqual(g.json.loads(f.read_text()), {"title": "hot", "body": "body", "critical": True})
+
+    def test_no_display_queues_then_flushes_to_decky(self):
+        with mock.patch.object(g, "desktop_mode_active", return_value=False):
+            self.n.send("a", "1")
+            self.n.send("b", "2", critical=True)
+            self.assertEqual(self.toasts(), [])
+            self.assertTrue(self.n.queue_file.exists())
+            g.DECKY_ALIVE.touch()  # Game Mode comes up
+            self.n.flush()
+        [f] = self.toasts()
+        self.assertIn("2 guard alerts", g.json.loads(f.read_text())["title"])
+        self.assertFalse(self.n.queue_file.exists())
+
+    def test_stale_decky_heartbeat_is_ignored(self):
+        g.DECKY_ALIVE.touch()
+        old = time.time() - 60
+        os.utime(g.DECKY_ALIVE, (old, old))
+        with mock.patch.object(g, "desktop_mode_active", return_value=False):
+            self.n.send("t", "b")
+        self.assertEqual(self.toasts(), [])
 
 
 if __name__ == "__main__":

@@ -5,7 +5,8 @@
 log_dir = "~/.local/state/legion-go-guards/logs"
 
 [notify]
-desktop = true   # KDE notification in Desktop Mode (queued and shown later if in Game Mode)
+desktop = true   # show alerts: KDE notification in Desktop Mode
+decky = true     # Steam toast in Game Mode (needs the Decky plugin); otherwise queued until shown
 sound = true     # alert sound, also works in Game Mode
 sound_warning = "/usr/share/sounds/freedesktop/stereo/dialog-warning.oga"
 sound_critical = "/usr/share/sounds/oxygen/stereo/Oxygen-Sys-App-Error-Critical.ogg"
