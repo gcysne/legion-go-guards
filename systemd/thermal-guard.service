@@ -1,0 +1,13 @@
+[Unit]
+Description=Legion Go guards: warn about high temperatures and kernel thermal events
+Documentation=https://github.com/gcysne/legion-go-guards
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/lib/legion-go-guards/thermal_guard.py
+Restart=on-failure
+RestartSec=10
+Nice=10
+
+[Install]
+WantedBy=default.target

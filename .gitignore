@@ -1,0 +1,10 @@
+# Never commit logs, state or machine-local config
+*.log
+*.jsonl
+logs/
+state/
+heartbeat-*.json
+*.pending.json
+config.toml
+__pycache__/
+*.pyc

@@ -1,0 +1,13 @@
+[Unit]
+Description=Legion Go guards: explain abnormal shutdowns, log kernel/GPU/crash events
+Documentation=https://github.com/gcysne/legion-go-guards
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/lib/legion-go-guards/reboot_reason_guard.py
+Restart=on-failure
+RestartSec=10
+Nice=10
+
+[Install]
+WantedBy=default.target

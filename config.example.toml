@@ -1,0 +1,24 @@
+# legion-go-guards config: copy to ~/.config/legion-go-guards/config.toml
+# Anything left out uses the defaults shown here.
+
+# Where event logs go (thermal-events.log, system-events.log, boot-history.log, events.jsonl).
+log_dir = "~/.local/state/legion-go-guards/logs"
+
+[notify]
+desktop = true   # KDE notification in Desktop Mode (queued and shown later if in Game Mode)
+sound = true     # alert sound, also works in Game Mode
+sound_warning = "/usr/share/sounds/freedesktop/stereo/dialog-warning.oga"
+sound_critical = "/usr/share/sounds/oxygen/stereo/Oxygen-Sys-App-Error-Critical.ogg"
+
+[thermal]
+poll_seconds = 5
+warn_c = 90.0           # CPU Tctl or GPU edge, held for sustain_seconds
+critical_c = 97.0       # two readings in a row
+sustain_seconds = 10
+hysteresis_c = 5.0      # episode ends below warn_c - hysteresis_c
+renotify_minutes = 5    # repeat critical alerts while still critical
+heartbeat_seconds = 30  # snapshot used to explain abrupt power-offs
+
+[system]
+scan_dumps_seconds = 30
+aggregate_seconds = 60  # identical messages within this window are counted once
