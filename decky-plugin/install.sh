@@ -17,14 +17,25 @@ corepack pnpm install --frozen-lockfile --silent
 corepack pnpm run --silent typecheck
 corepack pnpm run --silent build
 
-if [[ -e "$DEST" && ! -w "$DEST" ]]; then
-    echo "$DEST is not writable (installed by Decky as root?). Remove it with: sudo rm -rf '$DEST'" >&2
-    exit 1
+# Stage the plugin, then copy it into place. Decky makes ~/homebrew/plugins
+# root-owned, so the copy usually needs sudo (only this step runs as root).
+STAGE="$SRC/build/legion-go-guards"
+rm -rf "$STAGE"
+mkdir -p "$STAGE/dist"
+cp plugin.json package.json main.py LICENSE "$STAGE/"
+cp dist/index.js "$STAGE/dist/"
+
+# Copy next to (not inside) the watched plugins folder, swap it in with one
+# rename, then restart Decky: its hot reload trips over half-copied folders.
+TMP="$HOME/homebrew/.legion-go-guards.tmp"
+COPY=(sh -c 'rm -rf "$3" && cp -r "$2" "$3" && rm -rf "$1" && mv "$3" "$1" && { systemctl restart plugin_loader 2>/dev/null || true; }' _ "$DEST" "$STAGE" "$TMP")
+if [[ -w "$PLUGINS" ]]; then
+    "${COPY[@]}"
+elif [[ -t 0 ]]; then
+    echo "Installing into $PLUGINS and restarting Decky needs root (Decky owns that folder):"
+    sudo "${COPY[@]}"
+else
+    echo "Built and staged at $STAGE. To install, run decky-plugin/install.sh in a terminal (asks for sudo)." >&2
+    exit 2
 fi
-rm -rf "$DEST.new"
-mkdir -p "$DEST.new/dist"
-cp plugin.json package.json main.py LICENSE "$DEST.new/"
-cp dist/index.js "$DEST.new/dist/"
-rm -rf "$DEST"
-mv "$DEST.new" "$DEST"
-echo "Plugin installed to $DEST. Decky reloads it automatically; if not, restart Steam or run: sudo systemctl restart plugin_loader"
+echo "Plugin installed to $DEST and Decky restarted."
