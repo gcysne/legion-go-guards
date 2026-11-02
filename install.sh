@@ -2,7 +2,7 @@
 # Install (or update) legion-go-guards for the current user.
 # Everything goes in the home folder, so it survives SteamOS updates. No sudo.
 #
-#   ./install.sh [--log-dir DIR] [--no-start]
+#   ./install.sh [--log-dir DIR] [--no-start] [--no-plugin]
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
@@ -12,11 +12,13 @@ UNITS="$HOME/.config/systemd/user"
 CONF_DIR="$HOME/.config/legion-go-guards"
 LOG_DIR=""
 START=1
+PLUGIN=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --log-dir) LOG_DIR="$2"; shift 2 ;;
         --no-start) START=0; shift ;;
+        --no-plugin) PLUGIN=0; shift ;;
         -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
@@ -36,6 +38,8 @@ install -m 755 "$SRC"/guards/thermal_guard.py "$SRC"/guards/reboot_reason_guard.
 ln -sf "$LIB/thermal_guard.py" "$BIN/thermal-guard"
 ln -sf "$LIB/reboot_reason_guard.py" "$BIN/reboot-reason-guard"
 install -m 644 "$SRC"/systemd/thermal-guard.service "$SRC"/systemd/reboot-reason-guard.service "$UNITS/"
+install -m 755 "$SRC/uninstall.sh" "$LIB/"      # ~/.local/lib/legion-go-guards/uninstall.sh works for every install method
+python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$SRC/decky-plugin/package.json" > "$LIB/VERSION"
 
 if [[ ! -f "$CONF_DIR/config.toml" ]]; then
     cp "$SRC/config.example.toml" "$CONF_DIR/config.toml"
@@ -46,7 +50,7 @@ if [[ -n "$LOG_DIR" ]]; then
     echo "Log dir set to $LOG_DIR"
 fi
 
-if [[ -d "$HOME/homebrew/plugins" ]]; then
+if [[ $PLUGIN -eq 1 && -d "$HOME/homebrew/plugins" ]]; then
     echo "Decky Loader found: installing the Game Mode toast plugin..."
     "$SRC/decky-plugin/install.sh" || echo "warning: Decky plugin not installed (alerts in Game Mode will be sound only)" >&2
 fi
@@ -58,4 +62,4 @@ if [[ $START -eq 1 ]]; then
     sleep 2
     systemctl --user --no-pager --lines=3 status thermal-guard.service reboot-reason-guard.service || true
 fi
-echo "Installed. Logs: $(python3 -c "import sys; sys.path.insert(0, '$LIB'); import guardlib; print(guardlib.load_config()['log_dir'])")"
+echo "Installed Legion Go Guards $(cat "$LIB/VERSION"). Logs: $(python3 -c "import sys; sys.path.insert(0, '$LIB'); import guardlib; print(guardlib.load_config()['log_dir'])")"

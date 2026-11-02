@@ -2,9 +2,10 @@ import {
   ButtonItem,
   PanelSection,
   PanelSectionRow,
-  staticClasses,
 } from "@decky/ui";
-import { callable, definePlugin, toaster } from "@decky/api";
+import { callable, definePlugin, routerHook, toaster } from "@decky/api";
+import { TitleView } from "./about";
+import { GuardsPage, PAGE_ROUTE, openPage } from "./page";
 import { useEffect, useState } from "react";
 import { FaThermometerHalf } from "react-icons/fa";
 
@@ -79,12 +80,16 @@ function Content() {
             </div>
           </PanelSectionRow>
         ))}
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={() => openPage("events")}>All events and boot history</ButtonItem>
+        </PanelSectionRow>
       </PanelSection>
     </>
   );
 }
 
 export default definePlugin(() => {
+  routerHook.addRoute(PAGE_ROUTE, () => <GuardsPage />, { exact: true });
   // Poll for alerts written by the guards; each poll also marks Decky as alive.
   const timer = setInterval(async () => {
     try {
@@ -96,11 +101,12 @@ export default definePlugin(() => {
 
   return {
     name: "Legion Go Guards",
-    titleView: <div className={staticClasses.Title}>Legion Go Guards</div>,
+    titleView: <TitleView onCog={() => openPage()} />,
     content: <Content />,
     icon: <FaThermometerHalf />,
     onDismount() {
       clearInterval(timer);
+      routerHook.removeRoute(PAGE_ROUTE);
     },
   };
 });

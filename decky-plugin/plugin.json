@@ -1,11 +1,14 @@
 {
   "name": "Legion Go Guards",
-  "author": "gcysne",
+  "author": "Gabriel Cysne",
   "flags": [],
   "api_version": 1,
   "publish": {
-    "tags": ["monitoring", "thermal"],
-    "description": "Shows legion-go-guards alerts (thermal, abnormal shutdowns, GPU/kernel events) as Game Mode toasts.",
+    "tags": [
+      "monitoring",
+      "thermal"
+    ],
+    "description": "Warns before the Legion Go overheats, explains abnormal shutdowns and logs GPU, kernel and crash events, with alerts as Game Mode toasts.",
     "image": "https://opengraph.githubassets.com/1/gcysne/legion-go-guards"
   }
 }

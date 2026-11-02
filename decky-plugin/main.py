@@ -12,6 +12,9 @@ import os
 import re
 import subprocess
 import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import decky
@@ -22,6 +25,33 @@ TOASTS = STATE / "toasts"
 ALIVE = STATE / "decky-alive"
 CONFIG = HOME / ".config/legion-go-guards/config.toml"
 MAX_TOASTS = 4
+
+REPO = "gcysne/legion-go-guards"
+RELEASE_API = f"https://api.github.com/repos/{REPO}/releases/latest"
+RELEASE_INSTALL = f"curl -fsSL https://github.com/{REPO}/releases/latest/download/get-release.sh | bash"
+UPDATE_CACHE = STATE / "update-check.json"
+CHECK_HOURS = 12
+
+
+def _version():
+    try:
+        return json.loads((Path(__file__).resolve().parent / "package.json").read_text())["version"]
+    except (OSError, ValueError, KeyError):
+        return "0.0.0"
+
+
+def _version_key(text):
+    """Semver order (a release sorts after its pre-releases)."""
+    main, _, pre = str(text or "").strip().lstrip("vV").partition("-")
+    nums = [int(m.group()) if (m := re.match(r"\d+", x)) else 0 for x in main.split(".")]
+    nums = (nums + [0, 0, 0])[:3]
+    if not pre:
+        return (*nums, 1, ())
+    return (*nums, 0, tuple((0, int(x), "") if x.isdigit() else (1, 0, x) for x in pre.split(".")))
+
+
+def _now():
+    return datetime.now(timezone.utc)
 
 
 def _env():
@@ -44,7 +74,67 @@ def _log_dir():
     return STATE / "logs"
 
 
+def _check_release(force):
+    current = _version()
+    try:
+        cached = json.loads(UPDATE_CACHE.read_text())
+    except (OSError, ValueError):
+        cached = {}
+    try:
+        fresh = _now() - datetime.fromisoformat(cached["checked"]) < timedelta(hours=CHECK_HOURS)
+    except (KeyError, ValueError, TypeError):
+        fresh = False
+    if force or not fresh or cached.get("current") != current:
+        cached = {"checked": _now().isoformat(timespec="seconds"), "current": current}
+        try:
+            req = urllib.request.Request(RELEASE_API, headers={"User-Agent": f"legion-go-guards/{current}",
+                                                               "Accept": "application/vnd.github+json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                rel = json.loads(r.read())
+            cached.update(latest=str(rel.get("tag_name", "")).lstrip("vV"), url=rel.get("html_url", ""),
+                          notes=(rel.get("body") or "")[:1500])
+        except urllib.error.HTTPError as e:
+            cached["error"] = "no release published yet" if e.code == 404 else f"GitHub answered {e.code}"
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            cached["error"] = f"couldn't reach GitHub ({getattr(e, 'reason', e)})"
+        try:
+            STATE.mkdir(parents=True, exist_ok=True)
+            UPDATE_CACHE.write_text(json.dumps(cached))
+        except OSError:
+            pass
+    out = dict(cached, current=current, command=RELEASE_INSTALL)
+    out["newer"] = bool(out.get("latest")) and _version_key(out["latest"]) > _version_key(current)
+    return out
+
+
+def _tail(path, n):
+    try:
+        return path.read_text(errors="replace").splitlines()[-n:]
+    except OSError:
+        return []
+
+
 class Plugin:
+    async def plugin_info(self):
+        return {"version": _version()}
+
+    async def update_check(self, force=False):
+        import asyncio
+        return await asyncio.get_running_loop().run_in_executor(None, _check_release, bool(force))
+
+    async def get_events(self, limit=100):
+        events = []
+        for line in reversed(_tail(_log_dir() / "events.jsonl", int(limit))):
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            events.append({k: e.get(k, "") for k in ("time", "severity", "kind", "summary", "source")})
+        return events
+
+    async def get_boot_history(self, limit=50):
+        return list(reversed(_tail(_log_dir() / "boot-history.log", int(limit))))
+
     async def pop_toasts(self):
         STATE.mkdir(parents=True, exist_ok=True)
         ALIVE.touch()

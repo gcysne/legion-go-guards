@@ -11,3 +11,5 @@ __pycache__/
 node_modules/
 decky-plugin/dist/
 decky-plugin/build/
+release/
+CLAUDE.local.md

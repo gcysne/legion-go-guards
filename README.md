@@ -1,11 +1,12 @@
-# legion-go-guards
+# Legion Go Guards
 
 Two small user services for a Lenovo Legion Go (Z1 Extreme) running SteamOS. They warn
 about thermal problems, explain every shutdown that wasn't a normal user request, and
 keep a log of kernel, GPU and crash events to help with debugging and tuning games.
+A Decky Loader plugin shows the alerts as Game Mode toasts and lists events and boots.
 
 - Python 3 standard library only, using the SteamOS host Python. Nothing to install
-  system-wide and no sudo.
+  system-wide; the only root step is copying the Decky plugin into Decky's folder.
 - Everything lives in the home folder, so it survives SteamOS updates.
 - Read-only: the services never change hardware settings.
 
@@ -78,30 +79,102 @@ When Desktop Mode isn't running, the guards write each alert as a JSON file to
 how the guards know toasts will be seen. The plugin runs as the normal user.
 
 Its Quick Access panel shows the service status and recent events, and has a **Send test
-alerts** button that runs the full path (guard → spool → toast).
+alerts** button that runs the full path (guard → spool → toast). The **⚙ cog** in its
+title opens the full page: **Events** (the last 200), **Boot history** (how every boot
+ended) and **About** (version, update check, credits).
 
-`./install.sh` builds and installs the plugin when Decky Loader is present. It needs
-Node.js ≥ 20, found on `PATH` or in `~/.local/opt/node/bin`. To install only the plugin,
-run `decky-plugin/install.sh`.
 - Only important events alert you: thermal warnings, abnormal shutdowns, panics,
   lockups, MCE, GPU hangs, OOM kills and severe dumps. Everything else is only logged.
 
 Test with `thermal-guard --test-notify`.
 
+## Requirements
+
+- Lenovo Legion Go (Z1 Extreme) with SteamOS 3.7+. Other AMD handhelds may work but are
+  untested: the sensor names and thresholds are the Legion Go's.
+- Python 3.11+ (ships with SteamOS). Your user must be able to read the system journal
+  (the default `deck` user can).
+- [Decky Loader](https://decky.xyz) for Game Mode toasts (optional: without it, Game Mode
+  alerts are sound only).
+- Installed for you when needed, only to build the plugin from source: Node.js (official
+  build, checksum verified, `~/.cache/legion-go-guards/node`).
+
 ## Install
 
+In **Desktop Mode**, open Konsole and run **one** of these:
+
+**From the latest release** (recommended: a tested version, the Decky plugin comes
+prebuilt):
+
 ```bash
-git clone git@github.com:gcysne/legion-go-guards.git
-cd legion-go-guards
+curl -fsSL https://github.com/gcysne/legion-go-guards/releases/latest/download/get-release.sh | bash
+```
+
+It downloads `legion-go-guards.tar.gz` from the latest
+[release](https://github.com/gcysne/legion-go-guards/releases), checks it against the
+release's `SHA256SUMS`, and runs its installer.
+
+**From the source code** (latest development version, kept as a git clone):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gcysne/legion-go-guards/main/get.sh | bash
+```
+
+It clones the project into `~/legion-go-guards` and runs its installer. Prefer to read
+before running? Same thing by hand:
+
+```bash
+git clone https://github.com/gcysne/legion-go-guards.git ~/legion-go-guards
+cd ~/legion-go-guards
 ./install.sh                       # logs in ~/.local/state/legion-go-guards/logs
 ./install.sh --log-dir ~/somewhere # or choose the log folder
 ```
 
-The installer runs the tests, copies the scripts to `~/.local/lib/legion-go-guards`,
-adds `thermal-guard` and `reboot-reason-guard` to `~/.local/bin`, installs the user units
-and starts them. Run it again to update.
+The installer runs the tests, then puts everything in your home folder (it survives
+SteamOS updates). It asks for your password once, only to copy the plugin into Decky's
+folder (`~/homebrew/plugins` belongs to root).
 
-Settings are in `~/.config/legion-go-guards/config.toml`; see `config.example.toml`.
+| What | Where |
+|---|---|
+| Guards | `~/.local/lib/legion-go-guards/` |
+| `thermal-guard`, `reboot-reason-guard` commands | `~/.local/bin/` |
+| User services (enabled and started) | `~/.config/systemd/user/{thermal-guard,reboot-reason-guard}.service` |
+| Settings | `~/.config/legion-go-guards/config.toml` (see `config.example.toml`) |
+| Logs and state | `~/.local/state/legion-go-guards/` (logs: `log_dir` in the settings) |
+| Decky plugin | `~/homebrew/plugins/legion-go-guards/` |
+
+Options: `--log-dir DIR`, `--no-start`, `--no-plugin`. With a one-liner:
+`... | bash -s -- --no-plugin`.
+
+**Or let Claude do it.** If you use Claude Code (for example through
+[Sidequest](https://github.com/gcysne/sidequest)), give it this prompt:
+
+> Install this for me: https://github.com/gcysne/legion-go-guards
+
+> **Note for AI agents:** read this README first. Run it in Desktop Mode: clone into
+> `~/legion-go-guards` and run `./install.sh`. The only root step is copying the Decky
+> plugin into `~/homebrew/plugins`: explain it and let the user enter the password
+> (`sudo -A` with a graphical askpass, e.g. `SUDO_ASKPASS=/usr/bin/ksshaskpass`).
+
+### First steps
+
+In Game Mode, open Quick Access (<kbd>…</kbd>) → **Legion Go Guards** → **Send test
+alerts**: you should hear the alert sound and see two toasts. From a terminal:
+`thermal-guard --test-notify`.
+
+### Update
+
+The guards aren't in the Decky store, so Decky doesn't offer their updates. Instead,
+the plugin's **About** tab (⚙ cog) checks GitHub at most twice a day and shows **New
+version available** with the command to run. To update, run the release command again
+in Desktop Mode:
+
+```bash
+curl -fsSL https://github.com/gcysne/legion-go-guards/releases/latest/download/get-release.sh | bash
+```
+
+With a git clone: `cd ~/legion-go-guards && git pull && ./install.sh`. Settings and logs
+are kept.
 
 ## Logs
 
@@ -115,10 +188,21 @@ The service output is also in `journalctl --user -u thermal-guard -u reboot-reas
 
 ## Uninstall
 
+In **Desktop Mode**, in Konsole:
+
 ```bash
-./uninstall.sh          # keeps config and logs
-./uninstall.sh --purge  # deletes config and state too
+~/.local/lib/legion-go-guards/uninstall.sh            # stop and remove the services, commands and Decky plugin
+~/.local/lib/legion-go-guards/uninstall.sh --purge    # ...and also settings, state and logs
 ```
+
+This works however you installed it (`./uninstall.sh` in a git clone does the same). It
+asks for your password once, to remove the plugin from Decky's folder.
+
+- The guards never changed any hardware or system setting, so there is nothing to restore.
+- **Without `--purge`**, `~/.config/legion-go-guards` and the logs are kept.
+- Logs in a custom `log_dir` outside `~/.local/state` are never deleted: remove that folder
+  yourself if you want.
+- If you installed from source, also delete the clone: `rm -rf ~/legion-go-guards`.
 
 ## Limitations
 
@@ -134,3 +218,21 @@ The service output is also in `journalctl --user -u thermal-guard -u reboot-reas
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Credits
+
+- **Gabriel Cysne** ([github.com/gcysne](https://github.com/gcysne),
+  [linkedin.com/in/gcysne](https://www.linkedin.com/in/gcysne)): creator and lead. He had
+  the idea, sets the project's direction and design, and tests every build on real
+  hardware.
+- Code written by Claude (Anthropic's Claude Code), working with Gabriel Cysne.
+- Everyone who reports problems and tests on other devices:
+  [contributors](https://github.com/gcysne/legion-go-guards/graphs/contributors).
+- Built on [Decky Loader](https://decky.xyz), systemd and Python.
+
+Legion Go Guards is a community project, not affiliated with or endorsed by Lenovo, AMD or
+Valve. It only reads sensors and logs; it never changes fan, power or firmware settings.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Contributions welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
