@@ -10,6 +10,18 @@ A Decky Loader plugin shows the alerts as Game Mode toasts and lists events and 
 - Everything lives in the home folder, so it survives SteamOS updates.
 - Read-only: the services never change hardware settings.
 
+## Screenshots
+
+<img src="docs/images/legion-go-guards-panel.png" width="250" alt="Quick Access panel: service status, test alerts, recent events">
+
+The ⚙ cog opens the full page:
+
+| Events | Boot history |
+|---|---|
+| <img src="docs/images/legion-go-guards-events.png" alt="Events tab: crashes, dumps and thermal events with severity"> | <img src="docs/images/legion-go-guards-boots.png" alt="Boot history tab: how every boot ended"> |
+| **About** | |
+| <img src="docs/images/legion-go-guards-about.png" alt="About tab: version, update check, creator and credits"> | |
+
 ## thermal-guard
 
 - Checks the CPU (`k10temp` Tctl) and GPU (`amdgpu` edge) temperatures every 5 s.
