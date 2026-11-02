@@ -244,7 +244,7 @@ def boot_check(cfg, log, notifier, history):
     if r["severity"] != "info":
         hb = r["last_heartbeat"] or {}
         log.write("abnormal_shutdown", r["severity"], f"previous boot ended {r['ended']}: {r['category']} - {r['explanation']}",
-                  **{k: v for k, v in r.items() if k != "last_heartbeat"}, context=hb)
+                  **{k: v for k, v in r.items() if k not in ("last_heartbeat", "severity")}, context=hb)
         notifier.send(f"Last shutdown was not normal: {r['category'].replace('_', ' ')}",
                       f"{r['explanation']} (at {r['ended']})", critical=(r["severity"] == "critical"))
     state["analyzed"] = (state["analyzed"] + [prev])[-50:]
