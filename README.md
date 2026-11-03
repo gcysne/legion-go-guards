@@ -12,6 +12,12 @@ A Decky Loader plugin shows the alerts as Game Mode toasts and lists events and 
 
 ## Screenshots
 
+An alert in Game Mode (Steam toast, here from **Send test alerts**):
+
+<img src="docs/images/legion-go-guards-toast.png" width="460" alt="Steam toast: thermal-guard test (warning)">
+
+The Quick Access panel:
+
 <img src="docs/images/legion-go-guards-panel.png" width="250" alt="Quick Access panel: service status, test alerts, recent events">
 
 The ⚙ cog opens the full page:
