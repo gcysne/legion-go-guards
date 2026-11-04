@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0-alpha (2026-11-03)
 
 First public version.
 
@@ -16,3 +16,5 @@ First public version.
 - Install from the latest release (`get-release.sh`, prebuilt plugin, checksum verified) or from source (`get.sh`);
   `uninstall.sh` also removes the Decky plugin. Releases are built by a GitHub workflow on version tags.
 - Fixed: reboot-reason-guard crashed in a loop after an abnormal shutdown.
+- Pull requests: automatic security scan (rejects binaries, prompt injection, obfuscated code, unofficial
+  downloads...; warns on risky commands) and an advisory AI security review; code owner and branch ruleset.
