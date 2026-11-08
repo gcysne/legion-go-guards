@@ -254,3 +254,6 @@ Valve. It only reads sensors and logs; it never changes fan, power or firmware s
 ## License
 
 MIT. See [LICENSE](LICENSE). Contributions welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Found a bug?** Open an issue, then ask Claude to fix it, validate it and open a pull request too: see
+[CONTRIBUTING.md](CONTRIBUTING.md).
