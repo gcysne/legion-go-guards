@@ -1,6 +1,6 @@
 {
   "name": "legion-go-guards-decky",
-  "version": "0.1.0-alpha",
+  "version": "0.1.1-alpha",
   "description": "Game Mode toasts and status panel for legion-go-guards",
   "type": "module",
   "scripts": {
