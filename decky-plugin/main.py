@@ -74,6 +74,18 @@ def _log_dir():
     return STATE / "logs"
 
 
+def _ssl_context():
+    """HTTPS context with the system's CA certificates. Decky's bundled Python looks for them in its own build paths,
+    so plain urlopen fails there with CERTIFICATE_VERIFY_FAILED."""
+    import ssl
+    ctx = ssl.create_default_context()
+    for f in ("/etc/ssl/certs/ca-certificates.crt", "/etc/ssl/cert.pem", "/etc/pki/tls/certs/ca-bundle.crt"):
+        if os.path.isfile(f):
+            ctx.load_verify_locations(cafile=f)
+            break
+    return ctx
+
+
 def _check_release(force):
     current = _version()
     try:
@@ -84,12 +96,12 @@ def _check_release(force):
         fresh = _now() - datetime.fromisoformat(cached["checked"]) < timedelta(hours=CHECK_HOURS)
     except (KeyError, ValueError, TypeError):
         fresh = False
-    if force or not fresh or cached.get("current") != current:
+    if force or not fresh or cached.get("current") != current or cached.get("error"):
         cached = {"checked": _now().isoformat(timespec="seconds"), "current": current}
         try:
             req = urllib.request.Request(RELEASE_API, headers={"User-Agent": f"legion-go-guards/{current}",
                                                                "Accept": "application/vnd.github+json"})
-            with urllib.request.urlopen(req, timeout=15) as r:
+            with urllib.request.urlopen(req, timeout=15, context=_ssl_context()) as r:
                 rel = json.loads(r.read())
             cached.update(latest=str(rel.get("tag_name", "")).lstrip("vV"), url=rel.get("html_url", ""),
                           notes=(rel.get("body") or "")[:1500])

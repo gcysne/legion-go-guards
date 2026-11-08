@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fixed: the About tab's update check failed with a certificate error (CERTIFICATE_VERIFY_FAILED): Decky's bundled
+  Python doesn't find the system's CA certificates, so the plugin now loads them itself. A failed check is retried
+  the next time About opens instead of being cached.
+
 ## 0.1.0-alpha (2026-11-03)
 
 First public version.
